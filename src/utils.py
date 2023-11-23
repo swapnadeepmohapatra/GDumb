@@ -1,143 +1,143 @@
+import torch, torchvision
+from torch.utils.data import DataLoader
 import random
-import torch
-import numpy as np
-import os
-import logging
-from torch import nn
 
-class AverageMeter:
-    # Sourced from: https://github.com/pytorch/examples/blob/master/imagenet/main.py
-    def __init__(self):
-        self.reset()
-        self.val = 0.0
-        self.avg = 0.0
-        self.sum = 0.0
-        self.count = 0.0
+from main import *
 
-    def reset(self):
-        self.val = 0.0
-        self.avg = 0.0
-        self.sum = 0.0
-        self.count = 0.0
+transform_train = torchvision.transforms.Compose([
+	torchvision.transforms.Resize(224),
+	torchvision.transforms.ToTensor(),
+	torchvision.transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+])
 
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum*1.0 / self.count*1.0
 
-def get_logger(folder):
-    # global logger
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)s:%(name)s:%(message)s")
+if __name__ == '__main__':
+    # Parse arguments
+    opt = parse_args()
+    seed_everything(seed=opt.seed)
+
+    # Setup logger
+    console_logger = get_logger(folder=opt.log_dir+'/'+opt.exp_name+'/')
     
-    # Ensure proper folder path without extra slashes
-    folder_path = os.path.join(folder.rstrip('/'), 'CIFAR100_ResNet32_M20_t1_nc5_256epochs_cutmix_seed1')
+    # Handle fixed class orders. Note: Class ordering code hacky. Would need to manually adjust here to test for different datasets.
+    console_logger.debug("==> Loading dataset..")
+    class_order = [87, 0, 52, 58, 44, 91, 68, 97, 51, 15, 94, 92, 10, 72, 49, 78, 61, 14, 8, 86, 84, 96, 18, 24, 32, 45, 88, 11, 4, 67, 69, 66, 77, 47, 79, 93, 29, 50, 57, 83, 17, 81, 41, 12, 37, 59, 25, 20, 80, 73, 1, 28, 6, 46, 62, 82, 53, 9, 31, 75, 38, 63, 33, 74, 27, 22, 36, 3, 16, 21, 60, 19, 70, 90, 89, 43, 5, 42, 65, 76, 40, 30, 23, 85, 2, 95, 56, 48, 71, 64, 98, 13, 99, 7, 34, 55, 54, 26, 35, 39] #Currently testing using iCARL test order-- restricted to CIFAR100. For the other class orders refer to https://github.com/arthurdouillard/incremental_learning.pytorch/tree/master/options/data
+    if opt.dataset != 'CIFAR100' and opt.dataset !='ImageNet100': class_order=None
+
+    # Handle 'path does not exist errors' 
+    if not os.path.isdir(opt.log_dir+'/'+opt.exp_name):
+        os.mkdir(opt.log_dir+'/'+opt.exp_name)
+    if opt.old_exp_name!='test' and not os.path.isdir(opt.log_dir+'/'+opt.old_exp_name):
+        os.mkdir(opt.log_dir+'/'+opt.old_exp_name)    
+
+    # Set pretraining and continual dataloaders
+    dobj = VisionDataset(opt, class_order=class_order)
+    dobj.gen_cl_mapping()
+
+    # Scenario #1: First pretraining on n classes, then do continual learning
+    if opt.num_pretrain_classes > 0: 
+        opt.num_classes = opt.num_pretrain_classes
+        if opt.inp_size == 28: model = getattr(mnist, opt.model)(opt)
+        if opt.inp_size == 32 or opt.inp_size == 64: model = getattr(cifar, opt.model)(opt)
+        if opt.inp_size ==224: model = getattr(imagenet, opt.model)(opt)      
+        if not os.path.isfile(opt.log_dir+opt.old_exp_name+'/pretrained_model.pth.tar'):
+            console_logger.debug("==> Starting pre-training..") 
+            # _, model = experiment(opt=opt, class_mask=torch.ones(opt.num_classes,opt.num_classes).cuda(), train_loader=dobj.pretrain_loader, \
+            _, model = experiment(opt=opt, class_mask=torch.ones(opt.num_classes,opt.num_classes), train_loader=dobj.pretrain_loader, \
+                                    test_loader=dobj.pretest_loader, model=model, logger=console_logger, num_passes=opt.num_pretrain_passes)
+            save_model(opt, model) # Saves the pretrained model. Subsequent CL experiments directly load the pretrained model.
+        else:
+            model = load_model(opt, model, console_logger)
+        # Reset the final block to new set of classes
+        opt.num_classes = opt.num_classes_per_task*opt.num_tasks
+        model.final = FinalBlock(opt, model.dim_out)
     
-    # file logger
-    if not os.path.isdir(folder_path):
-        os.makedirs(folder_path)  # Create directory and any necessary parent directories
-    fh = logging.FileHandler(os.path.join(folder_path, 'checkpoint.log'), mode='w')
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-    
-    # console logger
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-    
-    return logger
+    # Scenario #2: Directly do continual learning from scratch
+    else: 
+        opt.num_classes = opt.num_classes_per_task*opt.num_tasks
+        if opt.inp_size == 28: model = getattr(mnist, opt.model)(opt)
+        if opt.inp_size == 32 or opt.inp_size == 64: model = getattr(cifar, opt.model)(opt)
+        if opt.inp_size ==224: model = getattr(imagenet, opt.model)(opt)
+		
+	train_ds = torchvision.datasets.CIFAR100(root='.', train=True,download=True, transform=transform_train)
+	valid_ds = torchvision.datasets.CIFAR100(root='.', train=False,download=True, transform=transform_train)
 
-def get_accuracy(y_prob, y_true, class_mask, return_vec=False):
-    '''
-    Calculates the task and class incremental accuracy of the model
-    '''
-    y_pred = torch.argmax(y_prob, axis=1)
+	batch_size = 256
 
-    mask = class_mask[y_true]
-    #assert (y_prob.size() == mask.size()), "Class mask does not match probabilities in output"
-    masked_prob = torch.mul(y_prob, mask)
-    y_pred_masked = torch.argmax(masked_prob, axis=1)
+	indices = torch.arange(1000)
+	tr_10k = torch.utils.data.Subset(train_ds, indices)
 
-    acc_full = torch.eq(y_pred, y_true)
-    acc_masked = torch.eq(y_pred_masked, y_true)
-    if return_vec:
-        return acc_full, acc_masked
+	indices1 = torch.arange(500)
+	vr_10k = torch.utils.data.Subset(valid_ds, indices1)
 
-    return (acc_full*1.0).mean(), (acc_masked*1.0).mean()
+	print(len(tr_10k))
 
+	train_dl = DataLoader(tr_10k, batch_size, shuffle=True, num_workers=32, pin_memory=True)
+	valid_dl = DataLoader(vr_10k, batch_size, num_workers=32, pin_memory=True)
 
-def seed_everything(seed):
-    '''
-    Fixes the class-to-task assignments and most other sources of randomness, except CUDA training aspects.
-    '''
-    # Avoid all sorts of randomness for better replication
-    random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    if torch.cuda.is_available():
-        torch.backends.cudnn.benchmark = True # An exemption for speed :P
+	num_classes = 100
+	classwise_train = {}
+	for i in range(num_classes):
+		classwise_train[i] = []
 
+	# print(train_ds.__getitem__(0))
 
-def save_model(opt, model):
-    '''
-    Used for saving the pretrained model, not for intermediate breaks in running the code.
-    '''
-    state = {'opt': opt,
-        'state_dict': model.state_dict()}
-    filename = opt.log_dir+opt.old_exp_name+'/pretrained_model.pth.tar'
-    torch.save(state, filename)
+	for img, label in tr_10k:
+		classwise_train[label].append((img, label))
 
+	classwise_test = {}
+	for i in range(num_classes):
+		classwise_test[i] = []
 
-def load_model(opt, model, logger):
-    '''
-    Used for loading the pretrained model, not for intermediate breaks in running the code.
-    '''
-    filepath = opt.log_dir+opt.old_exp_name+'/pretrained_model.pth.tar'
-    assert(os.path.isfile(filepath))
-    logger.debug("=> loading checkpoint '{}'".format(filepath))
-    checkpoint = torch.load(filepath, map_location=torch.device('cuda'))
-    model.load_state_dict(checkpoint['state_dict'])
-    return model
+	for img, label in vr_10k:
+		classwise_test[label].append((img, label))
 
-def cutmix_data(x, y, alpha=1.0, cutmix_prob=0.5):
-    assert(alpha > 0)
-    # generate mixed sample
-    lam = np.random.beta(alpha, alpha)
+	# Getting the forget and retain validation data
+	forget_valid = []
+	forget_classes = [69]
+	for cls in range(num_classes):
+		if cls in forget_classes:
+			for img, label in classwise_test[cls]:
+				forget_valid.append((img, label))
 
-    batch_size = x.size()[0]
-    index = torch.randperm(batch_size)
+	retain_valid = []
+	for cls in range(num_classes):
+		if cls not in forget_classes:
+			for img, label in classwise_test[cls]:
+				retain_valid.append((img, label))
+				
+	forget_train = []
+	for cls in range(num_classes):
+		if cls in forget_classes:
+			for img, label in classwise_train[cls]:
+				forget_train.append((img, label))
 
-    if torch.cuda.is_available():
-        index = index.cuda()
+	retain_train = []
+	for cls in range(num_classes):
+		if cls not in forget_classes:
+			for img, label in classwise_train[cls]:
+				retain_train.append((img, label))
 
-    y_a, y_b = y, y[index]
-    bbx1, bby1, bbx2, bby2 = rand_bbox(x.size(), lam)
-    x[:, :, bbx1:bbx2, bby1:bby2] = x[index, :, bbx1:bbx2, bby1:bby2]
+	forget_valid_dl = DataLoader(forget_valid, batch_size, num_workers=32, pin_memory=True)
 
-    # adjust lambda to exactly match pixel ratio
-    lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (x.size()[-1] * x.size()[-2]))
-    return x, y_a, y_b, lam
+	retain_valid_dl = DataLoader(retain_valid, batch_size, num_workers=32, pin_memory=True)
 
-def rand_bbox(size, lam):
-    W = size[2]
-    H = size[3]
-    cut_rat = np.sqrt(1. - lam)
-    cut_w = np.int(W * cut_rat)
-    cut_h = np.int(H * cut_rat)
+	forget_train_dl = DataLoader(forget_train, batch_size, num_workers=32, pin_memory=True)
+	retain_train_dl = DataLoader(retain_train, batch_size, num_workers=32, pin_memory=True, shuffle = True)
+	retain_train_subset = random.sample(retain_train, int(0.3*len(retain_train)))
+	retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=32, pin_memory=True, shuffle = True)
 
-    # uniform
-    cx = np.random.randint(W)
-    cy = np.random.randint(H)
+    console_logger.debug("==> Starting Scratch Learning Training..")
 
-    bbx1 = np.clip(cx - cut_w // 2, 0, W)
-    bby1 = np.clip(cy - cut_h // 2, 0, H)
-    bbx2 = np.clip(cx + cut_w // 2, 0, W)
-    bby2 = np.clip(cy + cut_h // 2, 0, H)
+	# Train and test loop
+	logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
+	model, optimizer = train(opt=opt, loader=train_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
+	prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+	
+	# Log performance
+	logger.info('==> Current accuracy: [{:.3f}]\t'.format(prec1))
+	if prec1 > best_prec1:
+		logger.info('==> Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+		best_prec1 = float(prec1)
 
-    return bbx1, bby1, bbx2, bby2
+    console_logger.debug("==> Completed!")
