@@ -31,18 +31,24 @@ def get_logger(folder):
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter("[%(asctime)s] %(levelname)s:%(name)s:%(message)s")
+    
+    # Ensure proper folder path without extra slashes
+    folder_path = os.path.join(folder.rstrip('/'), 'CIFAR100_ResNet32_M20_t1_nc5_256epochs_cutmix_seed1')
+    
     # file logger
-    if not os.path.isdir(folder):
-        os.mkdir(folder)
-    fh = logging.FileHandler(os.path.join(folder, 'checkpoint.log'), mode='w')
+    if not os.path.isdir(folder_path):
+        os.makedirs(folder_path)  # Create directory and any necessary parent directories
+    fh = logging.FileHandler(os.path.join(folder_path, 'checkpoint.log'), mode='w')
     fh.setLevel(logging.INFO)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
+    
     # console logger
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+    
     return logger
 
 def get_accuracy(y_prob, y_true, class_mask, return_vec=False):
