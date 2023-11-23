@@ -62,7 +62,7 @@ if __name__ == '__main__':
 	train_ds = torchvision.datasets.CIFAR100(root='.', train=True,download=True, transform=transform_train)
 	valid_ds = torchvision.datasets.CIFAR100(root='.', train=False,download=True, transform=transform_train)
 
-	batch_size = 256
+	batch_size = 16
 
 	indices = torch.arange(1000)
 	tr_10k = torch.utils.data.Subset(train_ds, indices)
@@ -72,8 +72,8 @@ if __name__ == '__main__':
 
 	print(len(tr_10k))
 
-	train_dl = DataLoader(tr_10k, batch_size, shuffle=True, num_workers=32, pin_memory=True)
-	valid_dl = DataLoader(vr_10k, batch_size, num_workers=32, pin_memory=True)
+	train_dl = DataLoader(tr_10k, batch_size, shuffle=True, num_workers=2, pin_memory=True)
+	valid_dl = DataLoader(vr_10k, batch_size, num_workers=2, pin_memory=True)
 
 	num_classes = 100
 	classwise_train = {}
@@ -118,14 +118,14 @@ if __name__ == '__main__':
 			for img, label in classwise_train[cls]:
 				retain_train.append((img, label))
 
-	forget_valid_dl = DataLoader(forget_valid, batch_size, num_workers=32, pin_memory=True)
+	forget_valid_dl = DataLoader(forget_valid, batch_size, num_workers=2, pin_memory=True)
 
-	retain_valid_dl = DataLoader(retain_valid, batch_size, num_workers=32, pin_memory=True)
+	retain_valid_dl = DataLoader(retain_valid, batch_size, num_workers=2, pin_memory=True)
 
-	forget_train_dl = DataLoader(forget_train, batch_size, num_workers=32, pin_memory=True)
-	retain_train_dl = DataLoader(retain_train, batch_size, num_workers=32, pin_memory=True, shuffle = True)
+	forget_train_dl = DataLoader(forget_train, batch_size, num_workers=2, pin_memory=True)
+	retain_train_dl = DataLoader(retain_train, batch_size, num_workers=2, pin_memory=True, shuffle = True)
 	retain_train_subset = random.sample(retain_train, int(0.3*len(retain_train)))
-	retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=32, pin_memory=True, shuffle = True)
+	retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=2, pin_memory=True, shuffle = True)
 
 	console_logger.debug("==> Starting Scratch Learning Training..")
 	best_prec1 = 0.0
@@ -134,11 +134,35 @@ if __name__ == '__main__':
 	optimizer = optim.SGD(model.parameters(), lr=opt.maxlr, momentum=0.9, weight_decay=opt.weight_decay)
 	scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=1, T_mult=2, eta_min=opt.minlr)
 	class_mask = torch.zeros(opt.num_classes, opt.num_classes).cuda()
-	epoch=5
+	
+	num_passes=5
+
 	# Train and test loop
-	console_logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
-	model, optimizer = train(opt=opt, loader=train_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=console_logger)
-	prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=console_logger, epoch=epoch)
+	logger.info("==> Opts for this training: "+str(opt))
+
+    for epoch in range(num_passes):
+        # Handle lr scheduling
+        if epoch <= 0: # Warm start of 1 epoch
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = opt.maxlr * 0.1
+        elif epoch == 1: # Then set to maxlr
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = opt.maxlr
+        else: # Aand go!
+            scheduler.step()
+
+        # Train and test loop
+        logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
+        model, optimizer = train(opt=opt, loader=train_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
+        prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+
+        # Log performance
+        logger.info('==> Current accuracy: [{:.3f}]\t'.format(prec1))
+        if prec1 > best_prec1:
+            logger.info('==> Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+            best_prec1 = float(prec1)
+
+    logger.info('==> Training completed! Acc: [{0:.3f}]'.format(best_prec1))
 	
 	# Log performance
 	console_logger.info('==> Current accuracy: [{:.3f}]\t'.format(prec1))
