@@ -59,80 +59,85 @@ if __name__ == '__main__':
         if opt.inp_size == 32 or opt.inp_size == 64: model = getattr(cifar, opt.model)(opt)
         if opt.inp_size ==224: model = getattr(imagenet, opt.model)(opt)
 		
-    train_ds = torchvision.datasets.CIFAR100(root='.', train=True,download=True, transform=transform_train)
-    valid_ds = torchvision.datasets.CIFAR100(root='.', train=False,download=True, transform=transform_train)
+	train_ds = torchvision.datasets.CIFAR100(root='.', train=True,download=True, transform=transform_train)
+	valid_ds = torchvision.datasets.CIFAR100(root='.', train=False,download=True, transform=transform_train)
 
-    batch_size = 256
+	batch_size = 256
 
-    indices = torch.arange(1000)
-    tr_10k = torch.utils.data.Subset(train_ds, indices)
+	indices = torch.arange(1000)
+	tr_10k = torch.utils.data.Subset(train_ds, indices)
 
-    indices1 = torch.arange(500)
-    vr_10k = torch.utils.data.Subset(valid_ds, indices1)
+	indices1 = torch.arange(500)
+	vr_10k = torch.utils.data.Subset(valid_ds, indices1)
 
-    print(len(tr_10k))
+	print(len(tr_10k))
 
-    train_dl = DataLoader(tr_10k, batch_size, shuffle=True, num_workers=32, pin_memory=True)
-    valid_dl = DataLoader(vr_10k, batch_size, num_workers=32, pin_memory=True)
+	train_dl = DataLoader(tr_10k, batch_size, shuffle=True, num_workers=32, pin_memory=True)
+	valid_dl = DataLoader(vr_10k, batch_size, num_workers=32, pin_memory=True)
 
-    num_classes = 100
-    classwise_train = {}
-    for i in range(num_classes):
-        classwise_train[i] = []
+	num_classes = 100
+	classwise_train = {}
+	for i in range(num_classes):
+		classwise_train[i] = []
 
 	# print(train_ds.__getitem__(0))
 
-    for img, label in tr_10k:
-        classwise_train[label].append((img, label))
+	for img, label in tr_10k:
+		classwise_train[label].append((img, label))
 
-    classwise_test = {}
-    for i in range(num_classes):
-        classwise_test[i] = []
+	classwise_test = {}
+	for i in range(num_classes):
+		classwise_test[i] = []
 
-    for img, label in vr_10k:
-        classwise_test[label].append((img, label))
+	for img, label in vr_10k:
+		classwise_test[label].append((img, label))
 
 	# Getting the forget and retain validation data
-    forget_valid = []
-    forget_classes = [69]
-    for cls in range(num_classes):
-        if cls in forget_classes:
-            for img, label in classwise_test[cls]:
-                forget_valid.append((img, label))
+	forget_valid = []
+	forget_classes = [69]
+	for cls in range(num_classes):
+		if cls in forget_classes:
+			for img, label in classwise_test[cls]:
+				forget_valid.append((img, label))
 
-    retain_valid = []
-    for cls in range(num_classes):
-        if cls not in forget_classes:
-            for img, label in classwise_test[cls]:
-                retain_valid.append((img, label))
+	retain_valid = []
+	for cls in range(num_classes):
+		if cls not in forget_classes:
+			for img, label in classwise_test[cls]:
+				retain_valid.append((img, label))
 				
-    forget_train = []
-    for cls in range(num_classes):
-        if cls in forget_classes:
-            for img, label in classwise_train[cls]:
-                forget_train.append((img, label))
+	forget_train = []
+	for cls in range(num_classes):
+		if cls in forget_classes:
+			for img, label in classwise_train[cls]:
+				forget_train.append((img, label))
 
-    retain_train = []
-    for cls in range(num_classes):
-        if cls not in forget_classes:
-            for img, label in classwise_train[cls]:
-                retain_train.append((img, label))
+	retain_train = []
+	for cls in range(num_classes):
+		if cls not in forget_classes:
+			for img, label in classwise_train[cls]:
+				retain_train.append((img, label))
 
-    forget_valid_dl = DataLoader(forget_valid, batch_size, num_workers=32, pin_memory=True)
-    retain_valid_dl = DataLoader(retain_valid, batch_size, num_workers=32, pin_memory=True)
-    forget_train_dl = DataLoader(forget_train, batch_size, num_workers=32, pin_memory=True)
-    retain_train_dl = DataLoader(retain_train, batch_size, num_workers=32, pin_memory=True, shuffle = True)
-    retain_train_subset = random.sample(retain_train, int(0.3*len(retain_train)))
-    retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=32, pin_memory=True, shuffle = True)
+	forget_valid_dl = DataLoader(forget_valid, batch_size, num_workers=32, pin_memory=True)
+
+	retain_valid_dl = DataLoader(retain_valid, batch_size, num_workers=32, pin_memory=True)
+
+	forget_train_dl = DataLoader(forget_train, batch_size, num_workers=32, pin_memory=True)
+	retain_train_dl = DataLoader(retain_train, batch_size, num_workers=32, pin_memory=True, shuffle = True)
+	retain_train_subset = random.sample(retain_train, int(0.3*len(retain_train)))
+	retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=32, pin_memory=True, shuffle = True)
+
     console_logger.debug("==> Starting Scratch Learning Training..")
-    # Train and test loop
-    logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
-    model, optimizer = train(opt=opt, loader=train_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
-    prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
-    # Log performance
-    logger.info('==> Current accuracy: [{:.3f}]\t'.format(prec1))
-    if prec1 > best_prec1:
-        logger.info('==> Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
-        best_prec1 = float(prec1)
+
+	# Train and test loop
+	logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
+	model, optimizer = train(opt=opt, loader=train_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
+	prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+	
+	# Log performance
+	logger.info('==> Current accuracy: [{:.3f}]\t'.format(prec1))
+	if prec1 > best_prec1:
+		logger.info('==> Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+		best_prec1 = float(prec1)
 
     console_logger.debug("==> Completed!")
