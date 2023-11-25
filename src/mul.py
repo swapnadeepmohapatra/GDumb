@@ -128,6 +128,8 @@ if __name__ == '__main__':
 	retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=2, pin_memory=True, shuffle = True)
 
 	console_logger.debug("==> Starting Scratch Learning Training..")
+	loggger=console_logger
+	
 	best_prec1 = 0.0
 	model = model.half().cuda() # Better speed with little loss in accuracy. If loss in accuracy is big, use apex.
 	criterion = nn.CrossEntropyLoss().cuda()
