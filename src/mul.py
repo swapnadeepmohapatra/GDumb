@@ -64,16 +64,16 @@ if __name__ == '__main__':
 
 	batch_size = 16
 
-	indices = torch.arange(1000)
-	tr_10k = torch.utils.data.Subset(train_ds, indices)
+	# indices = torch.arange(1000)
+	# tr_10k = torch.utils.data.Subset(train_ds, indices)
 
-	indices1 = torch.arange(500)
-	vr_10k = torch.utils.data.Subset(valid_ds, indices1)
+	# indices1 = torch.arange(500)
+	# vr_10k = torch.utils.data.Subset(valid_ds, indices1)
 
-	print(len(tr_10k))
+	# print(len(tr_10k))
 
-	train_dl = DataLoader(tr_10k, batch_size, shuffle=True, num_workers=2, pin_memory=True)
-	valid_dl = DataLoader(vr_10k, batch_size, num_workers=2, pin_memory=True)
+	train_dl = DataLoader(train_ds, batch_size, shuffle=True, num_workers=2, pin_memory=True)
+	valid_dl = DataLoader(valid_ds, batch_size, num_workers=2, pin_memory=True)
 
 	num_classes = 100
 	classwise_train = {}
@@ -82,14 +82,14 @@ if __name__ == '__main__':
 
 	# print(train_ds.__getitem__(0))
 
-	for img, label in tr_10k:
+	for img, label in train_ds:
 		classwise_train[label].append((img, label))
 
 	classwise_test = {}
 	for i in range(num_classes):
 		classwise_test[i] = []
 
-	for img, label in vr_10k:
+	for img, label in valid_ds:
 		classwise_test[label].append((img, label))
 
 	# Getting the forget and retain validation data
@@ -129,7 +129,7 @@ if __name__ == '__main__':
 
 	console_logger.debug("==> Starting Scratch Learning Training..")
 	loggger=console_logger
-	
+
 	best_prec1 = 0.0
 	model = model.half().cuda() # Better speed with little loss in accuracy. If loss in accuracy is big, use apex.
 	criterion = nn.CrossEntropyLoss().cuda()
