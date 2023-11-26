@@ -214,7 +214,7 @@ if __name__ == '__main__':
 
 		# Train and test loop
 		logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
-		gold_model, optimizer = train(opt=opt, loader=train_dl, model=gold_model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
+		gold_model, optimizer = train(opt=opt, loader=retain_train_dl, model=gold_model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
 		prec1 = test(loader=valid_dl, model=gold_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 		prec2 = test(loader=retain_valid_dl, model=gold_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 		prec3 = test(loader=forget_valid_dl, model=gold_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
