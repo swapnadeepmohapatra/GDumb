@@ -64,16 +64,8 @@ if __name__ == '__main__':
 
 	batch_size = 16
 
-	# indices = torch.arange(1000)
-	# tr_10k = torch.utils.data.Subset(train_ds, indices)
-
-	# indices1 = torch.arange(500)
-	# vr_10k = torch.utils.data.Subset(valid_ds, indices1)
-
-	# print(len(tr_10k))
-
-	train_dl = DataLoader(train_ds, batch_size, shuffle=True, num_workers=2, pin_memory=True)
-	valid_dl = DataLoader(valid_ds, batch_size, num_workers=2, pin_memory=True)
+	train_dl = DataLoader(train_ds, batch_size, shuffle=True, num_workers=0, pin_memory=True)
+	valid_dl = DataLoader(valid_ds, batch_size, num_workers=0, pin_memory=True)
 
 	num_classes = 100
 	classwise_train = {}
@@ -127,49 +119,134 @@ if __name__ == '__main__':
 	retain_train_subset = random.sample(retain_train, int(0.3*len(retain_train)))
 	retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=2, pin_memory=True, shuffle = True)
 
-	console_logger.debug("==> Starting Scratch Learning Training..")
-	loggger=console_logger
+	logger=console_logger
+
+	console_logger.debug("==> Starting Learning Training..")
 
 	best_prec1 = 0.0
+	best_prec2 = 0.0
+	best_prec3 = 0.0
 	model = model.half().cuda() # Better speed with little loss in accuracy. If loss in accuracy is big, use apex.
 	criterion = nn.CrossEntropyLoss().cuda()
 	optimizer = optim.SGD(model.parameters(), lr=opt.maxlr, momentum=0.9, weight_decay=opt.weight_decay)
 	scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=1, T_mult=2, eta_min=opt.minlr)
 	class_mask = torch.zeros(opt.num_classes, opt.num_classes).cuda()
 	
-	num_passes=5
+	num_passes=10
 
 	# Train and test loop
 	logger.info("==> Opts for this training: "+str(opt))
 
-    for epoch in range(num_passes):
-        # Handle lr scheduling
-        if epoch <= 0: # Warm start of 1 epoch
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = opt.maxlr * 0.1
-        elif epoch == 1: # Then set to maxlr
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = opt.maxlr
-        else: # Aand go!
-            scheduler.step()
+	for epoch in range(num_passes):
+		# Handle lr scheduling
+		if epoch <= 0: # Warm start of 1 epoch
+			for param_group in optimizer.param_groups:
+				param_group['lr'] = opt.maxlr * 0.1
+		elif epoch == 1: # Then set to maxlr
+			for param_group in optimizer.param_groups:
+				param_group['lr'] = opt.maxlr
+		else: # Aand go!
+			scheduler.step()
 
-        # Train and test loop
-        logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
-        model, optimizer = train(opt=opt, loader=train_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
-        prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		# Train and test loop
+		logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
+		model, optimizer = train(opt=opt, loader=train_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
+		prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		prec2 = test(loader=retain_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		prec3 = test(loader=forget_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 
-        # Log performance
-        logger.info('==> Current accuracy: [{:.3f}]\t'.format(prec1))
-        if prec1 > best_prec1:
-            logger.info('==> Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
-            best_prec1 = float(prec1)
+		# Log performance
+		logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
+		logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
+		logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
+		if prec1 > best_prec1:
+			logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+			best_prec1 = float(prec1)
+		if prec2 > best_prec2:
+			logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+			best_prec3 = float(prec2)
+		if prec3 > best_prec3:
+			logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+			best_prec4 = float(prec3)
 
-    logger.info('==> Training completed! Acc: [{0:.3f}]'.format(best_prec1))
+	logger.info('==> Training completed!\n\tTotal Acc: [{0:.3f}]\n\Retian Acc: [{1:.3f}]\n\Forget Acc: [{2:.3f}]'.format(best_prec1, best_prec2, best_prec3))
 	
 	# Log performance
-	console_logger.info('==> Current accuracy: [{:.3f}]\t'.format(prec1))
+	logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
+	logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
+	logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
 	if prec1 > best_prec1:
-		console_logger.info('==> Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+		logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
 		best_prec1 = float(prec1)
+	if prec2 > best_prec2:
+		logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+		best_prec3 = float(prec2)
+	if prec3 > best_prec3:
+		logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+		best_prec4 = float(prec3)
+
+	console_logger.debug("==> Completed!")
+
+	console_logger.debug("==> Starting Unlearning From Scratch Training..")
+
+	best_prec1 = 0.0
+	best_prec2 = 0.0
+	best_prec3 = 0.0
+	gold_model = model.half().cuda() # Better speed with little loss in accuracy. If loss in accuracy is big, use apex.
+	
+	num_passes=10
+
+	# Train and test loop
+	logger.info("==> Opts for this training: "+str(opt))
+
+	logger.info("==> Gold Model Accuracy: ")
+
+	for epoch in range(num_passes):
+		# Handle lr scheduling
+		if epoch <= 0: # Warm start of 1 epoch
+			for param_group in optimizer.param_groups:
+				param_group['lr'] = opt.maxlr * 0.1
+		elif epoch == 1: # Then set to maxlr
+			for param_group in optimizer.param_groups:
+				param_group['lr'] = opt.maxlr
+		else: # Aand go!
+			scheduler.step()
+
+		# Train and test loop
+		logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
+		gold_model, optimizer = train(opt=opt, loader=train_dl, model=gold_model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
+		prec1 = test(loader=valid_dl, model=gold_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		prec2 = test(loader=retain_valid_dl, model=gold_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		prec3 = test(loader=forget_valid_dl, model=gold_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+
+		# Log performance
+		logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
+		logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
+		logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
+		if prec1 > best_prec1:
+			logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+			best_prec1 = float(prec1)
+		if prec2 > best_prec2:
+			logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+			best_prec3 = float(prec2)
+		if prec3 > best_prec3:
+			logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+			best_prec4 = float(prec3)
+
+	logger.info('==> Training completed!\n\tTotal Acc: [{0:.3f}]\n\Retian Acc: [{1:.3f}]\n\Forget Acc: [{2:.3f}]'.format(best_prec1, best_prec2, best_prec3))
+	
+	# Log performance
+	logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
+	logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
+	logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
+	if prec1 > best_prec1:
+		logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+		best_prec1 = float(prec1)
+	if prec2 > best_prec2:
+		logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+		best_prec3 = float(prec2)
+	if prec3 > best_prec3:
+		logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+		best_prec4 = float(prec3)
 
 	console_logger.debug("==> Completed!")
