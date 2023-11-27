@@ -110,14 +110,14 @@ if __name__ == '__main__':
 			for img, label in classwise_train[cls]:
 				retain_train.append((img, label))
 
-	forget_valid_dl = DataLoader(forget_valid, batch_size, num_workers=2, pin_memory=True)
+	forget_valid_dl = DataLoader(forget_valid, batch_size, num_workers=0, pin_memory=True)
 
-	retain_valid_dl = DataLoader(retain_valid, batch_size, num_workers=2, pin_memory=True)
+	retain_valid_dl = DataLoader(retain_valid, batch_size, num_workers=0, pin_memory=True)
 
-	forget_train_dl = DataLoader(forget_train, batch_size, num_workers=2, pin_memory=True)
-	retain_train_dl = DataLoader(retain_train, batch_size, num_workers=2, pin_memory=True, shuffle = True)
+	forget_train_dl = DataLoader(forget_train, batch_size, num_workers=0, pin_memory=True)
+	retain_train_dl = DataLoader(retain_train, batch_size, num_workers=0, pin_memory=True, shuffle = True)
 	retain_train_subset = random.sample(retain_train, int(0.3*len(retain_train)))
-	retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=2, pin_memory=True, shuffle = True)
+	retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=0, pin_memory=True, shuffle = True)
 
 	logger=console_logger
 
@@ -150,7 +150,7 @@ if __name__ == '__main__':
 
 		# Train and test loop
 		logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
-		model, optimizer = train(opt=opt, loader=train_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
+		model, optimizer = train(opt=opt, loader=retain_train_subset_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
 		prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 		prec2 = test(loader=retain_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 		prec3 = test(loader=forget_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
