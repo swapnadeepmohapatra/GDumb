@@ -151,18 +151,18 @@ def accuracy(outputs, labels):
     return torch.tensor(torch.sum(preds == labels).item() / len(preds))*100
 
 def training_step(model, batch, device):
-    images, labels, clabels = batch 
-    images, clabels = images.to(device), clabels.to(device)
+    images, labels = batch 
+    images = images.to(device)
     out = model(images)                  # Generate predictions
-    loss = F.cross_entropy(out, clabels) # Calculate loss
+    loss = F.cross_entropy(out, labels) # Calculate loss
     return loss
 
 def validation_step(model, batch, device):
-    images, labels, clabels = batch 
-    images, clabels = images.to(device), clabels.to(device)
+    images, labels = batch 
+    images = images.to(device)
     out = model(images)                    # Generate predictions
-    loss = F.cross_entropy(out, clabels)   # Calculate loss
-    acc = accuracy(out, clabels)           # Calculate accuracy
+    loss = F.cross_entropy(out, labels)   # Calculate loss
+    acc = accuracy(out, labels)           # Calculate accuracy
     return {'Loss': loss.detach(), 'Acc': acc}
 
 def validation_epoch_end(model, outputs):
