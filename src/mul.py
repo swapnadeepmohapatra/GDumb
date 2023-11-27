@@ -1,6 +1,7 @@
 import torch, torchvision
 from torch.utils.data import DataLoader
 import random
+from utils import evaluate
 
 from main import *
 
@@ -123,9 +124,9 @@ if __name__ == '__main__':
 
 	console_logger.debug("==> Starting Learning Training..")
 
-	best_prec1 = 0.0
-	best_prec2 = 0.0
-	best_prec3 = 0.0
+	# best_prec1 = 0.0
+	# best_prec2 = 0.0
+	# best_prec3 = 0.0
 	model = model.half().cuda() # Better speed with little loss in accuracy. If loss in accuracy is big, use apex.
 	criterion = nn.CrossEntropyLoss().cuda()
 	optimizer = optim.SGD(model.parameters(), lr=opt.maxlr, momentum=0.9, weight_decay=opt.weight_decay)
@@ -151,47 +152,47 @@ if __name__ == '__main__':
 		# Train and test loop
 		logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
 		model, optimizer = train(opt=opt, loader=retain_train_subset_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
-		prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
-		prec2 = test(loader=retain_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
-		prec3 = test(loader=forget_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		# prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		# prec2 = test(loader=retain_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		# prec3 = test(loader=forget_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 
 		# Log performance
-		logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
-		logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
-		logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
-		if prec1 > best_prec1:
-			logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
-			best_prec1 = float(prec1)
-		if prec2 > best_prec2:
-			logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
-			best_prec3 = float(prec2)
-		if prec3 > best_prec3:
-			logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
-			best_prec4 = float(prec3)
+		# logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
+		# logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
+		# logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
+		# if prec1 > best_prec1:
+		# 	logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+		# 	best_prec1 = float(prec1)
+		# if prec2 > best_prec2:
+		# 	logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+		# 	best_prec3 = float(prec2)
+		# if prec3 > best_prec3:
+		# 	logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+		# 	best_prec4 = float(prec3)
 
-	logger.info('==> Training completed!\n\tTotal Acc: [{0:.3f}]\n\Retian Acc: [{1:.3f}]\n\Forget Acc: [{2:.3f}]'.format(best_prec1, best_prec2, best_prec3))
+	# logger.info('==> Training completed!\n\tTotal Acc: [{0:.3f}]\n\Retian Acc: [{1:.3f}]\n\Forget Acc: [{2:.3f}]'.format(best_prec1, best_prec2, best_prec3))
 	
 	# Log performance
-	logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
-	logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
-	logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
-	if prec1 > best_prec1:
-		logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
-		best_prec1 = float(prec1)
-	if prec2 > best_prec2:
-		logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
-		best_prec3 = float(prec2)
-	if prec3 > best_prec3:
-		logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
-		best_prec4 = float(prec3)
+	# logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
+	# logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
+	# logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
+	# if prec1 > best_prec1:
+	# 	logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+	# 	best_prec1 = float(prec1)
+	# if prec2 > best_prec2:
+	# 	logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+	# 	best_prec3 = float(prec2)
+	# if prec3 > best_prec3:
+	# 	logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+	# 	best_prec4 = float(prec3)
 
 	console_logger.debug("==> Completed!")
 
 	console_logger.debug("==> Starting Unlearning From Scratch Training..")
 
-	best_prec1 = 0.0
-	best_prec2 = 0.0
-	best_prec3 = 0.0
+	# best_prec1 = 0.0
+	# best_prec2 = 0.0
+	# best_prec3 = 0.0
 	gold_model = model.half().cuda() # Better speed with little loss in accuracy. If loss in accuracy is big, use apex.
 	
 	num_passes=10
@@ -215,38 +216,42 @@ if __name__ == '__main__':
 		# Train and test loop
 		logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
 		gold_model, optimizer = train(opt=opt, loader=retain_train_dl, model=gold_model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
-		prec1 = test(loader=valid_dl, model=gold_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
-		prec2 = test(loader=retain_valid_dl, model=gold_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
-		prec3 = test(loader=forget_valid_dl, model=gold_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		# prec1 = test(loader=valid_dl, model=gold_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		# prec2 = test(loader=retain_valid_dl, model=gold_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		# prec3 = test(loader=forget_valid_dl, model=gold_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 
 		# Log performance
-		logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
-		logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
-		logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
-		if prec1 > best_prec1:
-			logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
-			best_prec1 = float(prec1)
-		if prec2 > best_prec2:
-			logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
-			best_prec3 = float(prec2)
-		if prec3 > best_prec3:
-			logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
-			best_prec4 = float(prec3)
+		# logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
+		# logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
+		# logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
+		# if prec1 > best_prec1:
+		# 	logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+		# 	best_prec1 = float(prec1)
+		# if prec2 > best_prec2:
+		# 	logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+		# 	best_prec3 = float(prec2)
+		# if prec3 > best_prec3:
+		# 	logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+		# 	best_prec4 = float(prec3)
 
-	logger.info('==> Training completed!\n\tTotal Acc: [{0:.3f}]\n\Retian Acc: [{1:.3f}]\n\Forget Acc: [{2:.3f}]'.format(best_prec1, best_prec2, best_prec3))
+	# logger.info('==> Training completed!\n\tTotal Acc: [{0:.3f}]\n\Retian Acc: [{1:.3f}]\n\Forget Acc: [{2:.3f}]'.format(best_prec1, best_prec2, best_prec3))
 	
 	# Log performance
-	logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
-	logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
-	logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
-	if prec1 > best_prec1:
-		logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
-		best_prec1 = float(prec1)
-	if prec2 > best_prec2:
-		logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
-		best_prec3 = float(prec2)
-	if prec3 > best_prec3:
-		logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
-		best_prec4 = float(prec3)
+	# logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
+	# logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
+	# logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
+	# if prec1 > best_prec1:
+	# 	logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+	# 	best_prec1 = float(prec1)
+	# if prec2 > best_prec2:
+	# 	logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+	# 	best_prec3 = float(prec2)
+	# if prec3 > best_prec3:
+	# 	logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+	# 	best_prec4 = float(prec3)
 
 	console_logger.debug("==> Completed!")
+	evaluate(model, forget_valid_dl, 'cuda')
+
+	# performance of unlearned model on retain set
+	evaluate(gold_model, retain_valid_dl, 'cuda')
