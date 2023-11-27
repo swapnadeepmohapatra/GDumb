@@ -152,6 +152,7 @@ if __name__ == '__main__':
 		# Train and test loop
 		logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
 		model, optimizer = train(opt=opt, loader=retain_train_subset_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
+		print(evaluate(model, forget_valid_dl, 'cuda'))
 		# prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 		# prec2 = test(loader=retain_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 		# prec3 = test(loader=forget_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)

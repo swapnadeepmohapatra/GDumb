@@ -159,7 +159,7 @@ def training_step(model, batch, device):
 
 def validation_step(model, batch, device):
     images, labels = batch 
-    images = images.to(device)
+    images = images.half().to(device)
     out = model(images)                    # Generate predictions
     loss = F.cross_entropy(out, labels)   # Calculate loss
     acc = accuracy(out, labels)           # Calculate accuracy
