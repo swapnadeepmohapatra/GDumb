@@ -23,7 +23,7 @@ def unlearning_step(model, unlearning_teacher, full_trained_teacher, unlearn_dat
     losses = []
     for batch in unlearn_data_loader:
         x, y = batch
-        x, y = x.to(device), y.to(device)
+        x, y = x.to('cuda'), y.to('cuda')
         with torch.no_grad():
             full_teacher_logits = full_trained_teacher(x)
             unlearn_teacher_logits = unlearning_teacher(x)
@@ -132,3 +132,4 @@ def UNSIR_create_noisy_loader(noise, forget_class_label, retain_samples, batch_s
     noisy_loader = torch.utils.data.DataLoader(noisy_data, batch_size=batch_size, shuffle = True)
     
     return noisy_loader
+

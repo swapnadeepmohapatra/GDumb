@@ -152,15 +152,17 @@ def accuracy(outputs, labels):
 
 def training_step(model, batch, device):
     images, labels = batch 
-    images = images.to(device)
+    images = images.to('cuda')
     out = model(images)                  # Generate predictions
     loss = F.cross_entropy(out, labels) # Calculate loss
     return loss
 
 def validation_step(model, batch, device):
     images, labels = batch 
-    images = images.half().to(device)
-    out = model(images)                    # Generate predictions
+    images = images.half().to('cuda')
+    out = model(images)
+    out = out.cuda()
+    labels = labels.cuda()                    # Generate predictions
     loss = F.cross_entropy(out, labels)   # Calculate loss
     acc = accuracy(out, labels)           # Calculate accuracy
     return {'Loss': loss.detach(), 'Acc': acc}
