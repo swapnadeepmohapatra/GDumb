@@ -62,10 +62,11 @@ if __name__ == '__main__':
         if opt.inp_size == 32 or opt.inp_size == 64: model = getattr(cifar, opt.model)(opt)
         if opt.inp_size ==224: model = getattr(imagenet, opt.model)(opt)
     # load the trained model
-    device = 'cuda'
-    model = ResNet(opt).to(device)
-    model.load_state_dict(torch.load("D:\clones\logs\CIFAR100_ResNet32_M20_t20_nc5_256epochs_cutmix_seed1\CIFAR100_ResNet32_M20_t1_nc5_256epochs_cutmix_seed1.pt", map_location='cuda'))	
-
+    #device = 'cuda'
+    #model = ResNet(opt).to(device)
+    #model.load_state_dict(torch.load("D:\clones\logs\CIFAR100_ResNet32_M20_t20_nc5_256epochs_cutmix_seed1\CIFAR100_ResNet32_M20_t1_nc5_256epochs_cutmix_seed1\checkpoint.pt", map_location='cuda'))
+	
+    device='cuda'
     train_ds = torchvision.datasets.CIFAR100(root='.', train=True,download=True, transform=transform_train)
     valid_ds = torchvision.datasets.CIFAR100(root='.', train=False,download=True, transform=transform_train)
 
@@ -125,22 +126,22 @@ if __name__ == '__main__':
     retain_train_dl = DataLoader(retain_train, batch_size, num_workers=0, pin_memory=True, shuffle = True)
     retain_train_subset = random.sample(retain_train, int(0.3*len(retain_train)))
     retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=0, pin_memory=True, shuffle = True)
-
+    
     # Performance of Fully trained model on retain set
     evaluate(model, retain_valid_dl, device)
     
     # Performance of Fully trained model on retain set
     evaluate(model, forget_valid_dl, device)
 
-    device = 'cuda'
+    
     gold_model = ResNet(opt).to(device)
     epochs = 5
-    history = fit_one_unlearning_cycle(epochs, gold_model, retain_train_dl, retain_valid_dl, device = device)
-    torch.save(gold_model.state_dict(), "ResNET18_CIFAR100Super20_Pretrained_Gold_Class69_5_Epochs.pt")
+    history = fit_one_unlearning_cycle(epochs, gold_model, retain_train_dl, retain_valid_dl,lr=opt.maxlr, device = device)
+    #torch.save(gold_model.state_dict(), "ResNET18_CIFAR100Super20_Pretrained_Gold_Class69_5_Epochs.pt")
 
-    device = 'cuda'
-    gold_model = ResNet(opt).to(device)
-    gold_model.load_state_dict(torch.load("ResNET18_CIFAR100Super20_Pretrained_Gold_Class69_5_Epochs.pt", map_location=device))
+    #device = 'cuda'
+    #gold_model = ResNet(opt).to(device)
+    #gold_model.load_state_dict(torch.load("ResNET18_CIFAR100Super20_Pretrained_Gold_Class69_5_Epochs.pt", map_location=device))
     
     #forget set
     print("Forget: ",evaluate(gold_model, forget_valid_dl, 'cuda'))

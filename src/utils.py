@@ -159,7 +159,8 @@ def training_step(model, batch, device):
 
 def validation_step(model, batch, device):
     images, labels = batch 
-    images = images.half().to('cuda')
+    #images = images.half().to('cuda')
+    #images = images.to('cuda')
     out = model(images)
     out = out.cuda()
     labels = labels.cuda()                    # Generate predictions
