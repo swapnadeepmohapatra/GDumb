@@ -149,7 +149,9 @@ if __name__ == '__main__':
     console_logger.debug("==> Starting Continual Learning Training..")
     best_acc1, model = experiment(opt=opt, class_mask=dobj.class_mask, train_loader=dobj.cltrain_loader, test_loader=dobj.cltest_loader, \
                                         model=model, logger=console_logger, num_passes=opt.num_passes)
-    print("Forget: ",evaluate(model, dobj.cltest_loader, 'cuda'))
+    print("EForget: ",evaluate(model, dobj.cltest_loader, 'cuda'))
+    print("Forget: ",evaluate(model, dobj.forget_valid_dl, 'cuda'))
+    print("Retain: ",evaluate(model, dobj.retain_valid_dl, 'cuda'))
 
 		# performance of unlearned model on retain set
     console_logger.debug("==> Completed!")
