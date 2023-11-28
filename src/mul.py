@@ -152,7 +152,11 @@ if __name__ == '__main__':
 		# Train and test loop
 		logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
 		model, optimizer = train(opt=opt, loader=retain_train_subset_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
-		print(evaluate(model, forget_valid_dl, 'cuda'))
+		
+		print("Forget: ",evaluate(model, forget_valid_dl, 'cuda'))
+
+		# performance of unlearned model on retain set
+		print("Retain: ",evaluate(model, retain_valid_dl,'cuda'))
 		# prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 		# prec2 = test(loader=retain_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 		# prec3 = test(loader=forget_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
@@ -252,7 +256,7 @@ if __name__ == '__main__':
 	# 	best_prec4 = float(prec3)
 
 	console_logger.debug("==> Completed!")
-	print(evaluate(model, forget_valid_dl, 'cuda'))
+	print("Forget: ",evaluate(gold_model, forget_valid_dl, 'cuda'))
 
 	# performance of unlearned model on retain set
-	print(evaluate(gold_model, retain_valid_dl,'cuda'))
+	print("Retain: ",evaluate(gold_model, retain_valid_dl,'cuda'))
