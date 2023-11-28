@@ -6,6 +6,7 @@ from models.layers import FinalBlock
 from torch import nn, optim
 from opts import parse_args
 from utils import AverageMeter, get_accuracy, cutmix_data, get_logger, seed_everything, save_model, load_model
+from utils import evaluate
 
 def experiment(opt, class_mask, train_loader, test_loader, model, logger, num_passes):
     best_prec1 = 0.0
@@ -33,9 +34,9 @@ def experiment(opt, class_mask, train_loader, test_loader, model, logger, num_pa
         prec1 = test(loader=test_loader, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
         
         # Log performance
-        logger.info('==> Current accuracy: [{:.3f}]\t'.format(prec1))
+        # logger.info('==> Current accuracy: [{:.3f}]\t'.format(prec1))
         if prec1 > best_prec1:
-            logger.info('==> Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+            # logger.info('==> Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
             best_prec1 = float(prec1)
 
     logger.info('==> Training completed! Acc: [{0:.3f}]'.format(best_prec1))
@@ -148,4 +149,7 @@ if __name__ == '__main__':
     console_logger.debug("==> Starting Continual Learning Training..")
     best_acc1, model = experiment(opt=opt, class_mask=dobj.class_mask, train_loader=dobj.cltrain_loader, test_loader=dobj.cltest_loader, \
                                         model=model, logger=console_logger, num_passes=opt.num_passes)
+    print("Forget: ",evaluate(model, dobj.cltest_loader, 'cuda'))
+
+		# performance of unlearned model on retain set
     console_logger.debug("==> Completed!")
