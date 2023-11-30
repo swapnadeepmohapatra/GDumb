@@ -11,8 +11,9 @@ from main import *
 # ])
 
 transform_train = torchvision.transforms.Compose([
+	torchvision.transforms.RandomCrop(28, padding=4),
 	torchvision.transforms.ToTensor(), # first, convert image to PyTorch tensor
-	torchvision.transforms.Normalize((0.1307,), (0.3081,)) # normalize inputs
+	torchvision.transforms.Normalize((0.1307,),(0.3081,)) # normalize inputs
 ]), 
 
 
