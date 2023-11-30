@@ -4,7 +4,7 @@ from models.layers import FCBlock, FinalBlock
 class MLP(nn.Module):
     def __init__(self, opt):
         super(MLP, self).__init__()
-        self.input = FCBlock(opt=opt, in_channels=784, out_channels=opt.width)
+        self.input = FCBlock(opt=opt, in_channels=50176, out_channels=opt.width)
         self.hidden1 = FCBlock(opt=opt, in_channels=opt.width, out_channels=opt.width)
         self.dim_out = opt.width
         self.final = FinalBlock(opt=opt, in_channels=opt.width)
