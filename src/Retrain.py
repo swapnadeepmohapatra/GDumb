@@ -2,6 +2,7 @@ import torch, torchvision
 from torch.utils.data import DataLoader
 import random
 from utils import evaluate
+from unlearn import fit_one_unlearning_cycle
 from models.cifar.resnet import ResNet
 from main import *
 
@@ -13,7 +14,8 @@ transform_train = torchvision.transforms.Compose([
 
 
 if __name__ == '__main__':
-    '''# Parse arguments
+    opt=parse_args()
+    # Parse arguments
     opt = parse_args()
     seed_everything(seed=opt.seed)
 
@@ -58,13 +60,13 @@ if __name__ == '__main__':
         opt.num_classes = opt.num_classes_per_task*opt.num_tasks
         if opt.inp_size == 28: model = getattr(mnist, opt.model)(opt)
         if opt.inp_size == 32 or opt.inp_size == 64: model = getattr(cifar, opt.model)(opt)
-        if opt.inp_size ==224: model = getattr(imagenet, opt.model)(opt)'''
-
+        if opt.inp_size ==224: model = getattr(imagenet, opt.model)(opt)
     # load the trained model
-    device = 'cuda'
-    model = ResNet(num_classes = 20, pretrained = True).to(device)
-    model.load_state_dict(torch.load("CIFAR100_ResNet32_M20_t20_nc5_256epochs_cutmix_seed1.pt", map_location='cuda'))	
-
+    #device = 'cuda'
+    #model = ResNet(opt).to(device)
+    #model.load_state_dict(torch.load("D:\clones\logs\CIFAR100_ResNet32_M20_t20_nc5_256epochs_cutmix_seed1\CIFAR100_ResNet32_M20_t1_nc5_256epochs_cutmix_seed1\checkpoint.pt", map_location='cuda'))
+	
+    device='cuda'
     train_ds = torchvision.datasets.CIFAR100(root='.', train=True,download=True, transform=transform_train)
     valid_ds = torchvision.datasets.CIFAR100(root='.', train=False,download=True, transform=transform_train)
 
@@ -124,79 +126,24 @@ if __name__ == '__main__':
     retain_train_dl = DataLoader(retain_train, batch_size, num_workers=0, pin_memory=True, shuffle = True)
     retain_train_subset = random.sample(retain_train, int(0.3*len(retain_train)))
     retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=0, pin_memory=True, shuffle = True)
-
+    
     # Performance of Fully trained model on retain set
     evaluate(model, retain_valid_dl, device)
     
     # Performance of Fully trained model on retain set
     evaluate(model, forget_valid_dl, device)
 
-    logger=console_logger
-
-    console_logger.debug("==> Starting Learning Training..")
-
-    model = model.half().cuda() # Better speed with little loss in accuracy. If loss in accuracy is big, use apex.
-    criterion = nn.CrossEntropyLoss().cuda()
-    optimizer = optim.SGD(model.parameters(), lr=opt.maxlr, momentum=0.9, weight_decay=opt.weight_decay)
-    scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=1, T_mult=2, eta_min=opt.minlr)
-    class_mask = torch.zeros(opt.num_classes, opt.num_classes).cuda()
     
-    num_passes=5
+    gold_model = ResNet(opt).to(device)
+    epochs = 5
+    history = fit_one_unlearning_cycle(epochs, gold_model, retain_train_dl, retain_valid_dl,lr=opt.maxlr, device = device)
+    #torch.save(gold_model.state_dict(), "ResNET18_CIFAR100Super20_Pretrained_Gold_Class69_5_Epochs.pt")
 
-    # Train and test loop
-    logger.info("==> Opts for this training: "+str(opt))
-
-    for epoch in range(num_passes):
-        # Handle lr scheduling
-        if epoch <= 0: # Warm start of 1 epoch
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = opt.maxlr * 0.1
-        elif epoch == 1: # Then set to maxlr
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = opt.maxlr
-        else: # Aand go!
-            scheduler.step()
-
-        # Train and test loop
-        logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
-        model, optimizer = train(opt=opt, loader=retain_train_subset_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
-        
-        print("Forget: ",evaluate(model, forget_valid_dl, 'cuda'))
-
-        # performance of unlearned model on retain set
-        print("Retain: ",evaluate(model, retain_valid_dl,'cuda'))
-        
-
-    console_logger.debug("==> Completed!")
-
-    console_logger.debug("==> Starting Unlearning From Scratch Training..")
-
-    gold_model = model.half().cuda() # Better speed with little loss in accuracy. If loss in accuracy is big, use apex.
+    #device = 'cuda'
+    #gold_model = ResNet(opt).to(device)
+    #gold_model.load_state_dict(torch.load("ResNET18_CIFAR100Super20_Pretrained_Gold_Class69_5_Epochs.pt", map_location=device))
     
-    num_passes=5
-
-    # Train and test loop
-    logger.info("==> Opts for this training: "+str(opt))
-
-    logger.info("==> Gold Model Accuracy: ")
-
-    for epoch in range(num_passes):
-        # Handle lr scheduling
-        if epoch <= 0: # Warm start of 1 epoch
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = opt.maxlr * 0.1
-        elif epoch == 1: # Then set to maxlr
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = opt.maxlr
-        else: # Aand go!
-            scheduler.step()
-
-        # Train and test loop
-        logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
-        gold_model, optimizer = train(opt=opt, loader=retain_train_dl, model=gold_model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
-        
-
-    console_logger.debug("==> Completed!")
+    #forget set
     print("Forget: ",evaluate(gold_model, forget_valid_dl, 'cuda'))
 
     # performance of unlearned model on retain set
