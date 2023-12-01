@@ -4,17 +4,17 @@ import random
 
 from main import *
 
-# transform_train = torchvision.transforms.Compose([
-# 	torchvision.transforms.Resize(224),
-# 	torchvision.transforms.ToTensor(),
-# 	torchvision.transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-# ])
-
 transform_train = torchvision.transforms.Compose([
+ 	torchvision.transforms.Resize(224),
+ 	torchvision.transforms.ToTensor(),
+	torchvision.transforms.Normalize((0.1307), (0.3081)),
+])
+
+'''transform_train = torchvision.transforms.Compose([
 	torchvision.transforms.RandomCrop(28, padding=4),
 	torchvision.transforms.ToTensor(), # first, convert image to PyTorch tensor
-	torchvision.transforms.Normalize((0.1307,),(0.3081,)) # normalize inputs
-]), 
+	torchvision.transforms.Normalize((0.1307),(0.3081)) # normalize inputs
+]),''' 
 
 
 if __name__ == '__main__':
@@ -78,7 +78,7 @@ if __name__ == '__main__':
 	for i in range(num_classes):
 		classwise_train[i] = []
 
-	# print(train_ds.__getitem__(0))
+	#print(train_ds.__getitem__(0))
 
 	for img, label in train_ds:
 		classwise_train[label].append((img, label))
