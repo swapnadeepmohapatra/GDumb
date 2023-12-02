@@ -139,7 +139,7 @@ if __name__ == '__main__':
 	scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=1, T_mult=2, eta_min=opt.minlr)
 	class_mask = torch.zeros(opt.num_classes, opt.num_classes).cuda()
 	
-	num_passes=10
+	num_passes=20
 
 	# Train and test loop
 	logger.info("==> Opts for this training: "+str(opt))
@@ -211,3 +211,84 @@ if __name__ == '__main__':
           batch_size = 256, num_workers = 32, device = device, KL_temperature = KL_temperature)
 
 	console_logger.debug("==> Completed!")
+	console_logger.debug("==> Accuracy after 9 removed Completed!")
+
+	console_logger.debug("==> model")
+	prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+	prec2 = test(loader=retain_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+	prec3 = test(loader=forget_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+
+	logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+	logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+	logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+
+
+	console_logger.debug("==> student_model")
+	prec1 = test(loader=valid_dl, model=student_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+	prec2 = test(loader=retain_valid_dl, model=student_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+	prec3 = test(loader=forget_valid_dl, model=student_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+
+	logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+	logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+	logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+	
+	
+	console_logger.debug("==> unlearning_teacher")
+	prec1 = test(loader=valid_dl, model=student_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+	prec2 = test(loader=retain_valid_dl, model=student_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+	prec3 = test(loader=forget_valid_dl, model=student_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+
+	logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+	logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+	logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+
+	# console_logger.info("==> Started adding 9 back")
+	# for epoch in range(num_passes):
+	# 	# Handle lr scheduling
+	# 	if epoch <= 0: # Warm start of 1 epoch
+	# 		for param_group in optimizer.param_groups:
+	# 			param_group['lr'] = opt.maxlr * 0.1
+	# 	elif epoch == 1: # Then set to maxlr
+	# 		for param_group in optimizer.param_groups:
+	# 			param_group['lr'] = opt.maxlr
+	# 	else: # Aand go!
+	# 		scheduler.step()
+
+	# 	# Train and test loop
+	# 	logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
+	# 	model, optimizer = train(opt=opt, loader=train_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
+	# 	prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+	# 	prec2 = test(loader=retain_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+	# 	prec3 = test(loader=forget_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+
+	# 	# Log performance
+	# 	logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
+	# 	logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
+	# 	logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
+	# 	if prec1 > best_prec1:
+	# 		logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+	# 		best_prec1 = float(prec1)
+	# 	if prec2 > best_prec2:
+	# 		logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+	# 		best_prec3 = float(prec2)
+	# 	if prec3 > best_prec3:
+	# 		logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+	# 		best_prec4 = float(prec3)
+
+	# logger.info('==> Training completed!\n\tTotal Acc: [{0:.3f}]\n\Retian Acc: [{1:.3f}]\n\Forget Acc: [{2:.3f}]'.format(best_prec1, best_prec2, best_prec3))
+	
+	# # Log performance
+	# logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
+	# logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
+	# logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
+	# if prec1 > best_prec1:
+	# 	logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
+	# 	best_prec1 = float(prec1)
+	# if prec2 > best_prec2:
+	# 	logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
+	# 	best_prec3 = float(prec2)
+	# if prec3 > best_prec3:
+	# 	logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+	# 	best_prec4 = float(prec3)
+
+	# console_logger.debug("==> Completed!")
