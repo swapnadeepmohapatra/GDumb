@@ -1,7 +1,7 @@
 import torch, torchvision
 from torch.utils.data import DataLoader
 import random
-from utils import blindspot_unlearner
+from unlearn import blindspot_unlearner
 
 from main import *
 
