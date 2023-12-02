@@ -139,7 +139,7 @@ if __name__ == '__main__':
 	scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=1, T_mult=2, eta_min=opt.minlr)
 	class_mask = torch.zeros(opt.num_classes, opt.num_classes).cuda()
 	
-	num_passes=1
+	num_passes=2
 
 	# Train and test loop
 	logger.info("==> Opts for this training: "+str(opt))
@@ -196,9 +196,17 @@ if __name__ == '__main__':
 
 	torch.save(model.state_dict(), "MNIST_epochs_10.pt")
 
-	device = 'cuda'
+	'''device = 'cuda'
 	unlearning_teacher = model.cuda().eval()
 	student_model = model.cuda()
+	student_model.load_state_dict(torch.load("MNIST_epochs_10.pt", map_location = device))
+	model = model.eval()'''
+	device = 'cuda'
+	unlearning_teacher = getattr(mnist, opt.model)(opt)
+	unlearning_teacher = unlearning_teacher.cuda().eval()
+
+	student_model = getattr(mnist, opt.model)(opt)
+	student_model = student_model.cuda()
 	student_model.load_state_dict(torch.load("MNIST_epochs_10.pt", map_location = device))
 	model = model.eval()
 
@@ -207,7 +215,7 @@ if __name__ == '__main__':
 	optimizer = torch.optim.Adam(student_model.parameters(), lr = 0.0001)
 
 	blindspot_unlearner(model = student_model, unlearning_teacher = unlearning_teacher, full_trained_teacher = model, 
-          retain_data = retain_train_subset, forget_data = forget_train, epochs = 1, optimizer = optimizer, lr = 0.0001, 
+          retain_data = retain_train_subset, forget_data = forget_train, epochs = 5, optimizer = optimizer, lr = 0.0001, 
           batch_size = 256, num_workers = 16, device = device, KL_temperature = KL_temperature)
 
 	console_logger.debug("==> Completed!")
