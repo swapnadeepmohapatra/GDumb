@@ -5,17 +5,17 @@ from unlearn import blindspot_unlearner
 
 from main import *
 
-# transform_train = torchvision.transforms.Compose([
-# 	torchvision.transforms.Resize(224),
-# 	torchvision.transforms.ToTensor(),
-# 	torchvision.transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-# ])
-
 transform_train = torchvision.transforms.Compose([
+ 	torchvision.transforms.Resize(224),
+	torchvision.transforms.ToTensor(),
+ 	torchvision.transforms.Normalize((0.1307), (0.3081)),
+ ])
+
+'''transform_train = torchvision.transforms.Compose([
 	torchvision.transforms.RandomCrop(224),
 	torchvision.transforms.ToTensor(), # first, convert image to PyTorch tensor
 	torchvision.transforms.Normalize((0.1307),(0.3081)) # normalize inputs
-]), 
+]),'''
 
 
 if __name__ == '__main__':
@@ -117,14 +117,14 @@ if __name__ == '__main__':
 			for img, label in classwise_train[cls]:
 				retain_train.append((img, label))
 
-	forget_valid_dl = DataLoader(forget_valid, batch_size, num_workers=2, pin_memory=True)
+	forget_valid_dl = DataLoader(forget_valid, batch_size, num_workers=0, pin_memory=True)
 
-	retain_valid_dl = DataLoader(retain_valid, batch_size, num_workers=2, pin_memory=True)
+	retain_valid_dl = DataLoader(retain_valid, batch_size, num_workers=0, pin_memory=True)
 
-	forget_train_dl = DataLoader(forget_train, batch_size, num_workers=2, pin_memory=True)
-	retain_train_dl = DataLoader(retain_train, batch_size, num_workers=2, pin_memory=True, shuffle = True)
+	forget_train_dl = DataLoader(forget_train, batch_size, num_workers=0, pin_memory=True)
+	retain_train_dl = DataLoader(retain_train, batch_size, num_workers=0, pin_memory=True, shuffle = True)
 	retain_train_subset = random.sample(retain_train, int(0.3*len(retain_train)))
-	retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=2, pin_memory=True, shuffle = True)
+	retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=0, pin_memory=True, shuffle = True)
 
 	logger=console_logger
 
@@ -133,13 +133,13 @@ if __name__ == '__main__':
 	best_prec1 = 0.0
 	best_prec2 = 0.0
 	best_prec3 = 0.0
-	model = model.half().cuda() # Better speed with little loss in accuracy. If loss in accuracy is big, use apex.
+	model = model.cuda() # Better speed with little loss in accuracy. If loss in accuracy is big, use apex.
 	criterion = nn.CrossEntropyLoss().cuda()
 	optimizer = optim.SGD(model.parameters(), lr=opt.maxlr, momentum=0.9, weight_decay=opt.weight_decay)
 	scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=1, T_mult=2, eta_min=opt.minlr)
 	class_mask = torch.zeros(opt.num_classes, opt.num_classes).cuda()
 	
-	num_passes=20
+	num_passes=1
 
 	# Train and test loop
 	logger.info("==> Opts for this training: "+str(opt))
@@ -197,8 +197,8 @@ if __name__ == '__main__':
 	torch.save(model.state_dict(), "MNIST_epochs_10.pt")
 
 	device = 'cuda'
-	unlearning_teacher = model.half().cuda().eval()
-	student_model = model.half().cuda()
+	unlearning_teacher = model.cuda().eval()
+	student_model = model.cuda()
 	student_model.load_state_dict(torch.load("MNIST_epochs_10.pt", map_location = device))
 	model = model.eval()
 
@@ -208,7 +208,7 @@ if __name__ == '__main__':
 
 	blindspot_unlearner(model = student_model, unlearning_teacher = unlearning_teacher, full_trained_teacher = model, 
           retain_data = retain_train_subset, forget_data = forget_train, epochs = 1, optimizer = optimizer, lr = 0.0001, 
-          batch_size = 256, num_workers = 32, device = device, KL_temperature = KL_temperature)
+          batch_size = 256, num_workers = 16, device = device, KL_temperature = KL_temperature)
 
 	console_logger.debug("==> Completed!")
 	console_logger.debug("==> Accuracy after 9 removed Completed!")

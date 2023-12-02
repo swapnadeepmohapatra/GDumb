@@ -51,7 +51,7 @@ def test(loader, model, criterion, class_mask, logger, epoch):
             start = time.time()
             for inputs, labels in loader:
                 # Get outputs
-                inputs, labels = inputs.half().cuda(non_blocking=True), labels.cuda(non_blocking=True)
+                inputs, labels = inputs.cuda(non_blocking=True), labels.cuda(non_blocking=True)
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
                 losses.update(loss.data, inputs.size(0))
@@ -76,7 +76,7 @@ def train(opt, loader, model, criterion, optimizer, epoch, logger):
 
         for inputs, labels in loader:
             # Tweak inputs
-            inputs, labels = inputs.half().cuda(non_blocking=True), (labels).cuda(non_blocking=True)
+            inputs, labels = inputs.cuda(non_blocking=True), (labels).cuda(non_blocking=True)
             do_cutmix = opt.regularization == 'cutmix' and np.random.rand(1) < opt.cutmix_prob
             if do_cutmix: inputs, labels_a, labels_b, lam = cutmix_data(x=inputs, y=labels, alpha=opt.cutmix_alpha)
             data_time.update(time.time() - start)
