@@ -91,16 +91,14 @@ if __name__ == '__main__':
 	for img, label in valid_ds:
 		classwise_test[label].append((img, label))
 
-	print(len(classwise_train[0]))
-	print(len(classwise_train[1]))
-	print(len(classwise_train[2]))
-	print(len(classwise_train[3]))
-	print(len(classwise_train[4]))
-	print(len(classwise_train[5]))
-	print(len(classwise_train[6]))
-	print(len(classwise_train[7]))
-	print(len(classwise_train[8]))
-	print(len(classwise_train[9]))
+	classwise_train_dataloader = {}
+	for i in range(10):
+		classwise_train_dataloader[i] = DataLoader(classwise_train[i], batch_size, shuffle=True, num_workers=0, pin_memory=True)
+
+	classwise_test_dataloader = {}
+	for i in range(10):
+		classwise_test_dataloader[i] = DataLoader(classwise_test[i], batch_size, shuffle=True, num_workers=0, pin_memory=True)
+
 
 	# forget_valid_dl = DataLoader(forget_valid, batch_size, num_workers=0, pin_memory=True)
 
@@ -111,57 +109,50 @@ if __name__ == '__main__':
 	# retain_train_subset = random.sample(retain_train, int(0.3*len(retain_train)))
 	# retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=0, pin_memory=True, shuffle = True)
 
-	# logger=console_logger
+	logger=console_logger
 
-	# console_logger.debug("==> Starting Learning Training..")
+	console_logger.debug("==> Starting Learning Training..")
 
-	# best_prec1 = 0.0
-	# best_prec2 = 0.0
-	# best_prec3 = 0.0
-	# model = model.cuda() # Better speed with little loss in accuracy. If loss in accuracy is big, use apex.
-	# criterion = nn.CrossEntropyLoss().cuda()
-	# optimizer = optim.SGD(model.parameters(), lr=opt.maxlr, momentum=0.9, weight_decay=opt.weight_decay)
-	# scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=1, T_mult=2, eta_min=opt.minlr)
-	# class_mask = torch.zeros(opt.num_classes, opt.num_classes).cuda()
+	best_prec1 = 0.0
+	best_prec2 = 0.0
+	best_prec3 = 0.0
+	model = model.cuda() # Better speed with little loss in accuracy. If loss in accuracy is big, use apex.
+	criterion = nn.CrossEntropyLoss().cuda()
+	optimizer = optim.SGD(model.parameters(), lr=opt.maxlr, momentum=0.9, weight_decay=opt.weight_decay)
+	scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=1, T_mult=2, eta_min=opt.minlr)
+	class_mask = torch.zeros(opt.num_classes, opt.num_classes).cuda()
 	
-	# num_passes=10
+	num_passes=10
 
-	# # Train and test loop
-	# logger.info("==> Opts for this training: "+str(opt))
+	# Train and test loop
+	logger.info("==> Opts for this training: "+str(opt))
 
-	# for epoch in range(num_passes):
-	# 	# Handle lr scheduling
-	# 	if epoch <= 0: # Warm start of 1 epoch
-	# 		for param_group in optimizer.param_groups:
-	# 			param_group['lr'] = opt.maxlr * 0.1
-	# 	elif epoch == 1: # Then set to maxlr
-	# 		for param_group in optimizer.param_groups:
-	# 			param_group['lr'] = opt.maxlr
-	# 	else: # Aand go!
-	# 		scheduler.step()
+	for i in range(10):
+		logger.info("==> Starting training for class number: "+str(i))
+		for epoch in range(num_passes):
+			# Handle lr scheduling
+			if epoch <= 0: # Warm start of 1 epoch
+				for param_group in optimizer.param_groups:
+					param_group['lr'] = opt.maxlr * 0.1
+			elif epoch == 1: # Then set to maxlr
+				for param_group in optimizer.param_groups:
+					param_group['lr'] = opt.maxlr
+			else: # Aand go!
+				scheduler.step()
 
-	# 	# Train and test loop
-	# 	logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
-	# 	model, optimizer = train(opt=opt, loader=train_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
-	# 	prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
-	# 	prec2 = test(loader=retain_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
-	# 	prec3 = test(loader=forget_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+			# Train and test loop
+			logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
+			model, optimizer = train(opt=opt, loader=train_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
+			prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 
-	# 	# Log performance
-	# 	logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
-	# 	logger.info('==> Current retian accuracy: [{:.3f}]\t'.format(prec2))
-	# 	logger.info('==> Current forget accuracy: [{:.3f}]\t'.format(prec3))
-	# 	if prec1 > best_prec1:
-	# 		logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
-	# 		best_prec1 = float(prec1)
-	# 	if prec2 > best_prec2:
-	# 		logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
-	# 		best_prec3 = float(prec2)
-	# 	if prec3 > best_prec3:
-	# 		logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
-	# 		best_prec4 = float(prec3)
+			logger.info('==> Total Accuracy: [{:.3f}]\t'.format(prec1))
 
-	# logger.info('==> Training completed!\n\tTotal Acc: [{0:.3f}]\n\Retian Acc: [{1:.3f}]\n\Forget Acc: [{2:.3f}]'.format(best_prec1, best_prec2, best_prec3))
+		for i in range(10):
+			prec = test(loader=classwise_test_dataloader[i], model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+			logger.info('==> Class: [{:.3f}]\t'.format(i))
+			logger.info('==> Accuracy: [{:.3f}]\t'.format(prec))
+	
+	logger.info('==> Training completed!\n\tTotal Acc: [{0:.3f}]\n\Retian Acc: [{1:.3f}]\n\Forget Acc: [{2:.3f}]'.format(best_prec1, best_prec2, best_prec3))
 	
 	# # Log performance
 	# logger.info('==> Current total accuracy: [{:.3f}]\t'.format(prec1))
@@ -177,7 +168,7 @@ if __name__ == '__main__':
 	# 	logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
 	# 	best_prec4 = float(prec3)
 
-	# console_logger.debug("==> Completed!")
+	console_logger.debug("==> Completed!")
 
 	# torch.save(model.state_dict(), "MNIST_epochs_10.pt")
 
