@@ -142,8 +142,8 @@ if __name__ == '__main__':
 
 			# Train and test loop
 			logger.info("==> Starting pass number: "+str(epoch)+", Learning rate: " + str(optimizer.param_groups[0]['lr']))
-			model, optimizer = train(opt=opt, loader=train_dl, model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
-			prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+			model, optimizer = train(opt=opt, loader=classwise_train_dataloader[i], model=model, criterion=criterion, optimizer=optimizer, epoch=epoch, logger=logger)
+			prec1 = test(loader=classwise_test_dataloader[i], model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 
 			logger.info('==> Total Accuracy: [{:.3f}]\t'.format(prec1))
 

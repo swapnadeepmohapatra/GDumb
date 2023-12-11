@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
 	# Getting the forget and retain validation data
 	forget_valid = []
-	forget_classes = [9]
+	forget_classes = [7,8,9]
 	for cls in range(num_classes):
 		if cls in forget_classes:
 			for img, label in classwise_test[cls]:
@@ -126,6 +126,10 @@ if __name__ == '__main__':
 	retain_train_subset = random.sample(retain_train, int(0.3*len(retain_train)))
 	retain_train_subset_dl = DataLoader(retain_train_subset, batch_size, num_workers=0, pin_memory=True, shuffle = True)
 
+	classwise_test_dataloader = {}
+	for i in range(10):
+		classwise_test_dataloader[i] = DataLoader(classwise_test[i], batch_size, shuffle=True, num_workers=0, pin_memory=True)
+
 	logger=console_logger
 
 	console_logger.debug("==> Starting Learning Training..")
@@ -143,7 +147,7 @@ if __name__ == '__main__':
 
 	# Train and test loop
 	logger.info("==> Opts for this training: "+str(opt))
-
+	epoch = 0
 	for epoch in range(num_passes):
 		# Handle lr scheduling
 		if epoch <= 0: # Warm start of 1 epoch
@@ -194,6 +198,11 @@ if __name__ == '__main__':
 
 	console_logger.debug("==> Completed!")
 
+	for i in range(10):
+		prec = test(loader=classwise_test_dataloader[i], model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		logger.info('==> Class: [{:.3f}]\t'.format(i))
+		logger.info('==> Accuracy: [{:.3f}]\t'.format(prec))
+
 	torch.save(model.state_dict(), "MNIST_epochs_10.pt")
 
 	'''device = 'cuda'
@@ -215,23 +224,12 @@ if __name__ == '__main__':
 	optimizer = torch.optim.Adam(student_model.parameters(), lr = 0.0001)
 
 	blindspot_unlearner(model = student_model, unlearning_teacher = unlearning_teacher, full_trained_teacher = model, 
-          retain_data = retain_train_subset, forget_data = forget_train, epochs = 50, optimizer = optimizer, lr = 0.0001, 
+          retain_data = retain_train_subset, forget_data = forget_train, epochs = 20, optimizer = optimizer, lr = 0.0001, 
           batch_size = 16, num_workers = 2, device = device, KL_temperature = KL_temperature)
 
 	console_logger.debug("==> Completed!")
 	console_logger.debug("==> Accuracy after 9 removed Completed!")
 
-	console_logger.debug("==> model")
-	prec1 = test(loader=valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
-	prec2 = test(loader=retain_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
-	prec3 = test(loader=forget_valid_dl, model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
-
-	logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
-	logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
-	logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
-
-
-	console_logger.debug("==> student_model")
 	prec1 = test(loader=valid_dl, model=student_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 	prec2 = test(loader=retain_valid_dl, model=student_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
 	prec3 = test(loader=forget_valid_dl, model=student_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
@@ -240,17 +238,17 @@ if __name__ == '__main__':
 	logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
 	logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
 	
-	
-	console_logger.debug("==> unlearning_teacher")
-	prec1 = test(loader=valid_dl, model=unlearning_teacher, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
-	prec2 = test(loader=retain_valid_dl, model=unlearning_teacher, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
-	prec3 = test(loader=forget_valid_dl, model=unlearning_teacher, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+	for i in range(10):
+		prec = test(loader=classwise_test_dataloader[i], model=student_model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		logger.info('==> Class: [{:.3f}]\t'.format(i))
+		logger.info('==> Accuracy: [{:.3f}]\t'.format(prec))
 
-	logger.info('==> Total Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec1) + 'Current: [{:.3f}]\t'.format(prec1))
-	logger.info('==> Retain Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec2) + 'Current: [{:.3f}]\t'.format(prec2))
-	logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
+	for i in range(10):
+		prec = test(loader=classwise_test_dataloader[i], model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		logger.info('==> Class: [{:.3f}]\t'.format(i))
+		logger.info('==> Accuracy: [{:.3f}]\t'.format(prec))
 
-	console_logger.info("==> Started adding 9 back")
+	console_logger.info("==> Started adding 7,8,9 back")
 	for epoch in range(num_passes):
 		# Handle lr scheduling
 		if epoch <= 0: # Warm start of 1 epoch
@@ -298,5 +296,10 @@ if __name__ == '__main__':
 	if prec3 > best_prec3:
 		logger.info('==> Forget Accuracies\tPrevious: [{:.3f}]\t'.format(best_prec3) + 'Current: [{:.3f}]\t'.format(prec3))
 		best_prec4 = float(prec3)
+
+	for i in range(10):
+		prec = test(loader=classwise_test_dataloader[i], model=model, criterion=criterion, class_mask=class_mask, logger=logger, epoch=epoch)
+		logger.info('==> Class: [{:.3f}]\t'.format(i))
+		logger.info('==> Accuracy: [{:.3f}]\t'.format(prec))
 
 	console_logger.debug("==> Completed!")
